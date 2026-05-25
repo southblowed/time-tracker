@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="时间追踪">
+    <title>时间追踪</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-brand">⏱ 时间追踪</div>
+        <div class="nav-tabs" id="navTabs">
+            <button class="nav-tab active" data-view="record">记录</button>
+            <button class="nav-tab" data-view="week">周视图</button>
+            <button class="nav-tab" data-view="stats">统计</button>
+            <button class="nav-tab" data-view="analyze">AI 分析</button>
+            <button class="nav-tab" data-view="models">模型管理</button>
+        </div>
+    </nav>
+
+    <!-- ============ View: Record ============ -->
+    <section class="view active" id="view-record">
+        <div class="card record-card">
+            <div class="card-header">
+                <h2>记录新事件</h2>
+                <label class="toggle-label">
+                    <input type="checkbox" id="seamlessToggle">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-text">无缝时间</span>
+                </label>
+            </div>
+            <form id="eventForm" class="record-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><span class="field-icon">📅</span> 日期</label>
+                        <input type="date" id="eventDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label><span class="field-icon">🏷️</span> 事件类型</label>
+                        <select id="eventType" required></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><span class="field-icon">▶️</span> 开始时间</label>
+                        <input type="time" id="startTime" value="09:00" required>
+                    </div>
+                    <div class="form-group">
+                        <label><span class="field-icon">⏹️</span> 结束时间</label>
+                        <input type="time" id="endTime" value="10:00" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><span class="field-icon">📝</span> 详情描述</label>
+                    <input type="text" id="eventDetail" placeholder="比如：完成项目报告撰写" class="detail-input">
+                </div>
+                <button type="submit" class="btn btn-primary btn-save">
+                    <span class="btn-icon">＋</span> 保存事件
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>今日事件</h2>
+                <input type="date" id="recordDate" class="date-picker">
+            </div>
+            <div id="todayEvents" class="event-list"></div>
+        </div>
+    </section>
+
+    <!-- ============ View: Week ============ -->
+    <section class="view" id="view-week">
+        <div class="card">
+            <div class="card-header">
+                <h2>周视图</h2>
+                <div class="week-nav">
+                    <button id="weekPrev" class="btn btn-sm">‹ 上一周</button>
+                    <span id="weekLabel"></span>
+                    <button id="weekNext" class="btn btn-sm">下一周 ›</button>
+                    <button id="weekToday" class="btn btn-sm btn-primary">今天</button>
+                </div>
+            </div>
+            <div class="week-legend" id="weekLegend"></div>
+            <div class="week-grid-wrapper" id="weekGridWrapper">
+                <div class="week-grid" id="weekGrid"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ View: Stats ============ -->
+    <section class="view" id="view-stats">
+        <div class="card">
+            <div class="card-header">
+                <h2>时间统计</h2>
+                <div class="stats-nav">
+                    <button id="statsPrev" class="btn btn-sm">‹</button>
+                    <span id="statsLabel"></span>
+                    <button id="statsNext" class="btn btn-sm">›</button>
+                    <select id="statsMode">
+                        <option value="month">月</option>
+                        <option value="year">年</option>
+                    </select>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="chart-container">
+                    <canvas id="statsChart"></canvas>
+                </div>
+                <div class="stats-table-wrapper">
+                    <table id="statsTable">
+                        <thead><tr><th>类型</th><th>时长(小时)</th><th>占比</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ View: Analyze ============ -->
+    <section class="view" id="view-analyze">
+        <div class="card">
+            <div class="card-header">
+                <h2>AI 时间分析</h2>
+                <div class="analyze-nav">
+                    <select id="analyzeMode">
+                        <option value="month">本月</option>
+                        <option value="year">本年度</option>
+                    </select>
+                    <button id="analyzeBtn" class="btn btn-primary">开始分析</button>
+                </div>
+            </div>
+            <div id="analyzeResult" class="analyze-result">
+                <p class="hint">点击「开始分析」获取个性化时间优化建议。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ View: Models ============ -->
+    <section class="view" id="view-models">
+        <div class="card">
+            <h2>添加新供应商</h2>
+            <form id="providerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>名称</label>
+                        <input type="text" id="providerName" placeholder="例如：我的OpenAI" required>
+                    </div>
+                    <div class="form-group">
+                        <label>接口类型</label>
+                        <select id="providerType">
+                            <option value="openai">OpenAI 兼容</option>
+                            <option value="anthropic">Anthropic</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>API 地址</label>
+                        <input type="url" id="providerBase" placeholder="https://api.openai.com/v1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="providerModel" placeholder="gpt-4o">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="providerKey" placeholder="sk-..." required>
+                </div>
+                <button type="submit" class="btn btn-primary">添加</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>已配置供应商</h2>
+            </div>
+            <div id="providerList" class="provider-list"></div>
+        </div>
+    </section>
+
+    <!-- ============ Event Type Manager Modal ============ -->
+    <div class="modal-overlay" id="typeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>管理事件类型</h3>
+                <button class="modal-close" onclick="closeTypeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="typeManagerBody"></div>
+        </div>
+    </div>
+
+    <!-- ============ Event Edit Modal ============ -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>编辑事件</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editForm">
+                <input type="hidden" id="editEventId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="date" id="editEventDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>事件类型</label>
+                        <select id="editEventType" required></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>开始时间</label>
+                        <input type="time" id="editStartTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>结束时间</label>
+                        <input type="time" id="editEndTime" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>详情描述</label>
+                    <input type="text" id="editDetail" placeholder="事件描述">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-del" id="editDeleteBtn">删除</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/db.js"></script>
+    <script src="/static/script.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js');
+        }
+    </script>
+</body>
+</html>
