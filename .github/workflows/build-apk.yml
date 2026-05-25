@@ -23,18 +23,17 @@ jobs:
 
       - name: Generate standalone HTML and assets
         run: |
-          mkdir -p android/app/src/main/assets/static
           python app.py &
-          sleep 3
+          sleep 4
+          mkdir -p android/app/src/main/assets
           curl -s http://localhost:5000/ > android/app/src/main/assets/index.html
           kill %1 2>/dev/null || true
-          cp -r static/* android/app/src/main/assets/static/
+          cp -r static android/app/src/main/assets/static/
           cp -r static/icons android/app/src/main/assets/icons/
           sed -i 's|/static/|static/|g' android/app/src/main/assets/index.html
           sed -i '/serviceWorker/d' android/app/src/main/assets/index.html
-
-      - name: Generate Android icons
-        run: python scripts/generate_icons.py android/app/src/main/res
+          echo "Assets ready"
+          ls -la android/app/src/main/assets/
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -42,45 +41,40 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK components
+      - name: Install Android SDK 36
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-33" "build-tools;33.0.2" --sdk_root=$ANDROID_SDK_ROOT
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" --sdk_root=$ANDROID_SDK_ROOT 2>&1 || \
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" --sdk_root=$ANDROID_SDK_ROOT 2>&1
 
-      - name: Create Android local.properties
+      - name: Create local.properties
         working-directory: android
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
-      - name: Generate Gradle Wrapper
-        working-directory: android
-        run: gradle wrapper --gradle-version 8.5
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        run: gradle wrapper --gradle-version 8.7 && ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Align and sign APK with apksigner
+      - name: Sign with apksigner
         run: |
           APK=$(find android -name "*-release-unsigned.apk" | head -1)
           if [ -z "$APK" ]; then
             APK=$(find android -name "*.apk" -not -name "*-unaligned.apk" | head -1)
           fi
-          DIR=$(dirname "$APK")
           echo "APK: $APK"
+          DIR=$(dirname "$APK")
 
-          # Generate keystore
-          keytool -genkey -v -keystore /tmp/debug.keystore -alias debug \
+          keytool -genkey -v -keystore /tmp/timetracker.keystore -alias release \
             -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass android -keypass android \
-            -dname "CN=TimeTracker, OU=Dev, O=TimeTracker, L=Unknown, ST=Unknown, C=CN"
+            -storepass timetracker -keypass timetracker \
+            -dname "CN=TimeTracker, OU=Dev, O=TimeTracker, C=CN"
 
-          # Align first
           ZIPALIGN=$(ls $ANDROID_SDK_ROOT/build-tools/*/zipalign 2>/dev/null | head -1)
           if [ -n "$ZIPALIGN" ]; then
             $ZIPALIGN -v -p 4 "$APK" "$DIR/aligned.apk"
@@ -88,27 +82,18 @@ jobs:
             cp "$APK" "$DIR/aligned.apk"
           fi
 
-          # Sign with apksigner (v1+v2+v3 schemes)
           APKSIGNER=$(ls $ANDROID_SDK_ROOT/build-tools/*/apksigner 2>/dev/null | head -1)
           if [ -n "$APKSIGNER" ]; then
-            $APKSIGNER sign --ks /tmp/debug.keystore --ks-pass pass:android \
-              --ks-key-alias debug --v1-signing-enabled true --v2-signing-enabled true \
-              --out "$DIR/time-tracker.apk" "$DIR/aligned.apk"
-          else
-            # Fallback: jarsigner (v1 only)
-            jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
-              -keystore /tmp/debug.keystore -storepass android \
-              -signedjar "$DIR/time-tracker.apk" "$DIR/aligned.apk" debug
+            $APKSIGNER sign --ks /tmp/timetracker.keystore --ks-pass pass:timetracker \
+              --ks-key-alias release --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+              --out "$DIR/TimeTracker.apk" "$DIR/aligned.apk"
+            echo "Signed with apksigner"
           fi
-          ls -lh "$DIR/time-tracker.apk"
-          echo "APK ready for install"
+          ls -lh "$DIR/TimeTracker.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: time-tracker-apk
-          path: |
-            android/app/build/outputs/apk/**/*.apk
-            android/app/build/outputs/apk/release/*.apk
-            android/**/time-tracker.apk
+          name: TimeTracker-APK
+          path: android/**/TimeTracker.apk
           retention-days: 30
