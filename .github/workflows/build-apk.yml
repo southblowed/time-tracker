@@ -41,28 +41,42 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Create gradle wrapper
+      - name: Install Android SDK components
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" --sdk_root=$ANDROID_SDK_ROOT
+
+      - name: Create Android local.properties
+        working-directory: android
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      - name: Generate Gradle Wrapper
         working-directory: android
         run: gradle wrapper --gradle-version 8.5
 
-      - name: Build APK
+      - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Sign APK with debug key
+      - name: Sign APK
         run: |
           keytool -genkey -v -keystore /tmp/debug.keystore -alias debug \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android \
             -dname "CN=TimeTracker, OU=Dev, O=TimeTracker, L=Unknown, ST=Unknown, C=CN"
-          APK=$(find android -name "*-release-unsigned.apk" | head -1)
+          APK=$(find android -name "*-release-unsigned.apk" -o -name "*.apk" | head -1)
+          echo "Found APK: $APK"
           if [ -n "$APK" ]; then
             jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
               -keystore /tmp/debug.keystore -storepass android "$APK" debug
           fi
+          find android -name "*.apk" -exec ls -lh {} \;
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
