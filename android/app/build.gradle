@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'com.timetracker.app'
-    compileSdk 34
+    compileSdk 33
 
     defaultConfig {
         applicationId 'com.timetracker.app'
         minSdk 21
-        targetSdk 34
+        targetSdk 33
         versionCode 1
         versionName '1.0.0'
     }
@@ -32,6 +32,6 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.webkit:webkit:1.10.0'
+    implementation 'androidx.webkit:webkit:1.8.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
 }

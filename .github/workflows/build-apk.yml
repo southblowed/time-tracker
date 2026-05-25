@@ -51,7 +51,7 @@ jobs:
       - name: Install Android SDK components
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" --sdk_root=$ANDROID_SDK_ROOT
+          sdkmanager "platforms;android-33" "build-tools;33.0.2" --sdk_root=$ANDROID_SDK_ROOT
 
       - name: Create Android local.properties
         working-directory: android
@@ -65,23 +65,50 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Sign APK
+      - name: Align and sign APK with apksigner
         run: |
+          APK=$(find android -name "*-release-unsigned.apk" | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find android -name "*.apk" -not -name "*-unaligned.apk" | head -1)
+          fi
+          DIR=$(dirname "$APK")
+          echo "APK: $APK"
+
+          # Generate keystore
           keytool -genkey -v -keystore /tmp/debug.keystore -alias debug \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android \
             -dname "CN=TimeTracker, OU=Dev, O=TimeTracker, L=Unknown, ST=Unknown, C=CN"
-          APK=$(find android -name "*-release-unsigned.apk" -o -name "*.apk" | head -1)
-          echo "Found APK: $APK"
-          if [ -n "$APK" ]; then
-            jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
-              -keystore /tmp/debug.keystore -storepass android "$APK" debug
+
+          # Align first
+          ZIPALIGN=$(ls $ANDROID_SDK_ROOT/build-tools/*/zipalign 2>/dev/null | head -1)
+          if [ -n "$ZIPALIGN" ]; then
+            $ZIPALIGN -v -p 4 "$APK" "$DIR/aligned.apk"
+          else
+            cp "$APK" "$DIR/aligned.apk"
           fi
-          find android -name "*.apk" -exec ls -lh {} \;
+
+          # Sign with apksigner (v1+v2+v3 schemes)
+          APKSIGNER=$(ls $ANDROID_SDK_ROOT/build-tools/*/apksigner 2>/dev/null | head -1)
+          if [ -n "$APKSIGNER" ]; then
+            $APKSIGNER sign --ks /tmp/debug.keystore --ks-pass pass:android \
+              --ks-key-alias debug --v1-signing-enabled true --v2-signing-enabled true \
+              --out "$DIR/time-tracker.apk" "$DIR/aligned.apk"
+          else
+            # Fallback: jarsigner (v1 only)
+            jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+              -keystore /tmp/debug.keystore -storepass android \
+              -signedjar "$DIR/time-tracker.apk" "$DIR/aligned.apk" debug
+          fi
+          ls -lh "$DIR/time-tracker.apk"
+          echo "APK ready for install"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: time-tracker-apk
-          path: android/app/build/outputs/apk/**/*.apk
+          path: |
+            android/app/build/outputs/apk/**/*.apk
+            android/app/build/outputs/apk/release/*.apk
+            android/**/time-tracker.apk
           retention-days: 30
