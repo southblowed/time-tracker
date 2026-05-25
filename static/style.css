@@ -39,10 +39,11 @@ body {
 .nav {
     background: linear-gradient(135deg, var(--nav-from) 0%, var(--nav-mid) 50%, var(--nav-to) 100%);
     color: #fff;
-    padding: 0 28px;
+    padding: env(safe-area-inset-top, 0px) 28px 0 28px;
     display: flex;
     align-items: center;
-    height: 60px;
+    height: calc(60px + env(safe-area-inset-top, 0px));
+    min-height: 60px;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -293,7 +294,7 @@ body {
 /* ========== Week Grid ========== */
 .week-grid-wrapper {
     overflow: auto; border-radius: var(--radius-sm);
-    max-height: 680px; border: 1px solid var(--border);
+    max-height: 640px; border: 1px solid var(--border);
 }
 .week-grid-wrapper::-webkit-scrollbar { width: 6px; height: 6px; }
 .week-grid-wrapper::-webkit-scrollbar-track { background: transparent; }
@@ -509,23 +510,46 @@ body {
 
 /* ========== Responsive ========== */
 @media (max-width: 768px) {
-    .nav { padding: 0 16px; }
+    .nav {
+        padding: env(safe-area-inset-top, 0px) 12px 0 12px;
+        height: calc(52px + env(safe-area-inset-top, 0px));
+        min-height: 52px;
+    }
     .nav-brand { font-size: 17px; margin-right: 16px; }
     .nav-tab { padding: 8px 12px; font-size: 13px; }
-    .view { padding: 16px; }
+    .view { padding: 16px 12px 24px; }
     .card { padding: 20px; }
-    .week-grid { min-width: 700px; }
-    .week-grid-wrapper { max-height: 520px; }
+    .week-grid { min-width: 650px; }
+    .week-grid-wrapper { max-height: 70vh; }
+    .week-grid .header-cell { font-size: 11px; padding: 10px 4px; }
+    .week-grid .slot-cell { min-height: 40px; }
+    .week-grid .time-label { font-size: 10px; padding: 6px 4px; }
+    .week-grid .slot-cell .event-block { font-size: 9px; min-height: 16px; }
 }
 
 @media (max-width: 480px) {
+    .nav {
+        padding: env(safe-area-inset-top, 0px) 8px 0 8px;
+        height: calc(48px + env(safe-area-inset-top, 0px));
+        min-height: 48px;
+    }
     .nav-brand { display: none; }
-    .nav-tab { padding: 6px 10px; font-size: 12px; }
-    .view { padding: 12px; }
-    .card { padding: 16px; border-radius: var(--radius-sm); }
+    .nav-tab { padding: 6px 8px; font-size: 12px; }
+    .view { padding: 12px 8px calc(16px + env(safe-area-inset-bottom, 0px)); }
+    .card { padding: 14px; border-radius: var(--radius-sm); }
     .form-group input, .form-group select { padding: 8px 12px; font-size: 13px; }
     .record-form .form-row { grid-template-columns: 1fr; }
     .toast { font-size: 13px; padding: 10px 20px; }
-    .week-grid { min-width: 600px; }
-    .week-grid-wrapper { max-height: 420px; }
+    .week-grid { min-width: 500px; }
+    .week-grid-wrapper { max-height: 65vh; border-radius: 6px; }
+    .week-grid .header-cell { font-size: 10px; padding: 8px 2px; }
+    .week-grid .slot-cell { min-height: 36px; }
+    .week-grid .time-label { font-size: 9px; padding: 4px 2px; }
+    .week-legend { gap: 8px; }
+    .week-legend .legend-item { font-size: 10px; padding: 2px 6px; }
+    .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .week-nav { width: 100%; justify-content: space-between; }
+    #weekLabel { font-size: 12px; min-width: auto; }
+    .stats-nav select { font-size: 12px; padding: 4px 8px; }
+    .chart-container { height: 260px; }
 }
