@@ -1,7 +1,7 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
   push:
     branches: [main]
 
@@ -9,97 +9,62 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install Python deps
-        run: pip install flask anthropic requests
+        run: pip install flask anthropic requests Pillow
 
-      - name: Generate standalone HTML
+      - name: Generate standalone HTML and assets
         run: |
           python app.py &
           sleep 3
           curl -s http://localhost:5000/ > android/app/src/main/assets/index.html
-          kill %1
-
-      - name: Copy static assets to Android
-        run: |
+          kill %1 2>/dev/null || true
           cp -r static android/app/src/main/assets/static/
           cp -r static/icons android/app/src/main/assets/icons/
-          # Fix paths in the standalone HTML for file:// protocol
           sed -i 's|/static/|static/|g' android/app/src/main/assets/index.html
-          sed -i 's|/manifest.json|static/manifest.json|g' android/app/src/main/assets/index.html
-          # Remove service worker registration (won't work with file://)
-          sed -i "/serviceWorker/d" android/app/src/main/assets/index.html
+          sed -i '/serviceWorker/d' android/app/src/main/assets/index.html
 
-      - name: Generate app icon from SVG
-        run: |
-          sudo apt-get install -y librsvg2-bin
-          for size in 48 72 96 144 192; do
-            rsvg-convert -w $size -h $size static/icons/icon.svg \
-              -o android/app/src/main/res/mipmap-${size}dpi/ic_launcher.png 2>/dev/null || \
-            python3 -c "
-from PIL import Image
-img = Image.new('RGBA', ($size,$size), (26,26,46,255))
-img.save('android/app/src/main/res/mipmap-${size}dpi/ic_launcher.png')
-"
-          done
+      - name: Generate Android icons
+        run: python scripts/generate_icons.py android/app/src/main/res
 
-      - name: Set up Java 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Grant execute permission
-        run: chmod +x android/gradlew 2>/dev/null || true
+      - name: Create gradle wrapper
+        working-directory: android
+        run: gradle wrapper --gradle-version 8.5
 
       - name: Build APK
-        working-directory: ./android
-        run: |
-          if [ -f gradlew ]; then
-            ./gradlew assembleRelease
-          else
-            # Use gradle wrapper
-            gradle wrapper
-            ./gradlew assembleRelease
-          fi
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Sign APK
-        if: success()
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'android' }}
+      - name: Sign APK with debug key
         run: |
-          # Generate debug keystore if not present
-          keytool -genkey -v -keystore debug.keystore -alias debug \
+          keytool -genkey -v -keystore /tmp/debug.keystore -alias debug \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android \
-            -dname "CN=TimeTracker, OU=Dev, O=TimeTracker, L=Unknown, ST=Unknown, C=CN" 2>/dev/null || true
-          # Find APK and sign
-          APK=$(find android -name "*.apk" -not -name "*-unsigned.apk" -not -name "*-unaligned.apk" | head -1)
-          if [ -z "$APK" ]; then
-            APK=$(find android -name "app-release-unsigned.apk" | head -1)
-            if [ -n "$APK" ]; then
-              jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
-                -keystore debug.keystore -storepass android \
-                "$APK" debug
-            fi
+            -dname "CN=TimeTracker, OU=Dev, O=TimeTracker, L=Unknown, ST=Unknown, C=CN"
+          APK=$(find android -name "*-release-unsigned.apk" | head -1)
+          if [ -n "$APK" ]; then
+            jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+              -keystore /tmp/debug.keystore -storepass android "$APK" debug
           fi
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: time-tracker-apk
-          path: |
-            android/app/build/outputs/apk/**/*.apk
-            android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/**/*.apk
           retention-days: 30
