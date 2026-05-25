@@ -23,11 +23,12 @@ jobs:
 
       - name: Generate standalone HTML and assets
         run: |
+          mkdir -p android/app/src/main/assets/static
           python app.py &
           sleep 3
           curl -s http://localhost:5000/ > android/app/src/main/assets/index.html
           kill %1 2>/dev/null || true
-          cp -r static android/app/src/main/assets/static/
+          cp -r static/* android/app/src/main/assets/static/
           cp -r static/icons android/app/src/main/assets/icons/
           sed -i 's|/static/|static/|g' android/app/src/main/assets/index.html
           sed -i '/serviceWorker/d' android/app/src/main/assets/index.html
