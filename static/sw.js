@@ -6,6 +6,7 @@ const ASSETS = [
     '/static/manifest.json',
     '/static/icons/icon-192.png',
     '/static/icons/icon-512.png',
+    'https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.7/chart.umd.min.js',
     'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js'
 ];
 
@@ -28,7 +29,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     // Only cache same-origin requests and the CDN chart.js
-    if (url.origin === self.location.origin || url.hostname === 'cdn.jsdelivr.net') {
+    if (url.origin === self.location.origin || url.hostname === 'cdn.jsdelivr.net' || url.hostname === 'cdn.bootcdn.net') {
         event.respondWith(
             caches.match(event.request).then(cached => {
                 if (cached) return cached;
