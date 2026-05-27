@@ -1,4 +1,4 @@
-const CACHE_NAME = 'time-tracker-v1';
+const CACHE_NAME = 'time-tracker-v2';
 const ASSETS = [
     '/',
     '/static/style.css',
