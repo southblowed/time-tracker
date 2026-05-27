@@ -29,24 +29,11 @@ jobs:
           curl -s http://localhost:5000/ > android/app/src/main/assets/index.html
           kill %1 2>/dev/null || true
 
-          # Copy static assets first (before creating chart/ subdir)
           cp -r static android/app/src/main/assets/static/
           cp -r static/icons android/app/src/main/assets/icons/
 
-          # Bundle Chart.js locally for offline APK use
-          mkdir -p android/app/src/main/assets/static/chart
-          curl -sL "https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.7/chart.umd.min.js" \
-            -o android/app/src/main/assets/static/chart/chart.umd.min.js 2>/dev/null || \
-          curl -sL "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" \
-            -o android/app/src/main/assets/static/chart/chart.umd.min.js 2>/dev/null || true
-
           sed -i 's|/static/|static/|g' android/app/src/main/assets/index.html
           sed -i '/serviceWorker/d' android/app/src/main/assets/index.html
-          # Replace CDN links with local file
-          sed -i 's|https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.7/chart.umd.min.js|static/chart/chart.umd.min.js|g' \
-            android/app/src/main/assets/index.html
-          sed -i 's|https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js|static/chart/chart.umd.min.js|g' \
-            android/app/src/main/assets/index.html
           echo "Assets ready"
           ls -la android/app/src/main/assets/
           ls -la android/app/src/main/assets/static/
